@@ -71,25 +71,4 @@ sudo pacman -S python python-pip sqlite
 ./install.sh
 ```
 
-3. Activate the virtual environment:
-```bash
-source venv.sh activate
-```
-
-[Rest of README.md content remains unchanged from here...]
-
-Description
-
-TODO: Add documentation for this section
-
-Installation
-
-TODO: Add documentation for this section
-
-Usage
-
-TODO: Add documentation for this section
-
-Configuration
-
-TODO: Add documentation for this section
+![image](https://github.com/user-attachments/assets/f2d58933-3eb4-4456-86c8-8ca00ced33ad)
