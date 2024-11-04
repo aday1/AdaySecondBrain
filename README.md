@@ -74,22 +74,7 @@ sudo pacman -S python python-pip sqlite
 3. Activate the virtual environment:
 ```bash
 source venv.sh activate
-```
 
-[Rest of README.md content remains unchanged from here...]
+Run it with ./pkm.sh web
 
-Description
-
-TODO: Add documentation for this section
-
-Installation
-
-TODO: Add documentation for this section
-
-Usage
-
-TODO: Add documentation for this section
-
-Configuration
-
-TODO: Add documentation for this section
+```![image](https://github.com/user-attachments/assets/ceba5e02-106f-4b67-a0aa-a918365cb04c)
