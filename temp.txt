@@ -1,0 +1,121 @@
+[0;32mCleaning up repository...[0m
+[0;32mCommenting out debug traces in shell scripts...[0m
+Processing ./git_push_commit_merge.sh...
+Processing ./pkm.sh...
+Processing ./setup.sh...
+Processing ./truncate_demo.sh...
+Processing ./cleanup.sh...
+Processing ./install.sh...
+Processing ./start-pkm.sh...
+Processing ./demo.sh...
+Processing ./h_commit_merge.sh...
+Processing ./venv.sh...
+[1;33mVirtual environment detected. Cleaning pip cache...[0m
+[0;32mCleanup completed![0m
+[0;32mCurrent git status:[0m
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes not staged for commit:
+  (use "git add <file>..." to update what will be committed)
+  (use "git restore <file>..." to discard changes in working directory)
+	modified:   cleanup.sh
+	modified:   demo.sh
+	modified:   git_push_commit_merge.sh
+	modified:   install.sh
+	modified:   pkm.sh
+	modified:   setup.sh
+	modified:   start-pkm.sh
+	modified:   truncate_demo.sh
+	modified:   venv.sh
+
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+	h_commit_merge.sh
+	temp.txt
+
+no changes added to commit (use "git add" and/or "git commit -a")
+
+[0;32mChanges to be committed:[0m
+diff --git a/cleanup.sh b/cleanup.sh
+old mode 100755
+new mode 100644
+diff --git a/demo.sh b/demo.sh
+old mode 100755
+new mode 100644
+index 24c6886..8dce8da
+--- a/demo.sh
++++ b/demo.sh
+@@ -1,7 +1,7 @@
+ #!/bin/bash
+ 
+ set -e
+-set -x
++# set -x
+ 
+ # Function to create a backup
+ create_backup() {
+diff --git a/git_push_commit_merge.sh b/git_push_commit_merge.sh
+old mode 100755
+new mode 100644
+index 268ea42..9bb7cae
+--- a/git_push_commit_merge.sh
++++ b/git_push_commit_merge.sh
+@@ -105,6 +105,27 @@ check_functions() {
+ cleanup_repository() {
+     echo -e "${GREEN}Cleaning up repository...${NC}"
+     
++    # Comment out set -x in all shell scripts
++    echo -e "${GREEN}Commenting out debug traces in shell scripts...${NC}"
++    while IFS= read -r -d '' script; do
++        echo "Processing $script..."
++        # Create a temporary file
++        temp_file=$(mktemp)
++        
++        # Process the file line by line
++        while IFS= read -r line || [[ -n "$line" ]]; do
++            # If line contains "set -x" and isn't already commented, comment it
++            if [[ $line =~ ^[[:space:]]*set[[:space:]]-x[[:space:]]*$ ]] && [[ ! $line =~ ^[[:space:]]*# ]]; then
++                echo "# $line" >> "$temp_file"
++            else
++                echo "$line" >> "$temp_file"
++            fi
++        done < "$script"
++        
++        # Replace original file with modified version
++        mv "$temp_file" "$script"
++    done < <(find . -type f -name "*.sh" -print0)
++    
+     # Remove Python compiled files
+     find . -type f -name "*.pyc" -delete
+     find . -type f -name "*.pyo" -delete
+diff --git a/install.sh b/install.sh
+old mode 100755
+new mode 100644
+diff --git a/pkm.sh b/pkm.sh
+old mode 100755
+new mode 100644
+diff --git a/setup.sh b/setup.sh
+old mode 100755
+new mode 100644
+index 7a64b57..ab984aa
+--- a/setup.sh
++++ b/setup.sh
+@@ -1,7 +1,7 @@
+  #!/bin/bash
+ 
+ set -e
+-set -x
++# set -x
+ 
+ # Check if Python 3 is installed
+ if ! command -v python3 &> /dev/null; then
+diff --git a/start-pkm.sh b/start-pkm.sh
+old mode 100755
+new mode 100644
+diff --git a/truncate_demo.sh b/truncate_demo.sh
+old mode 100755
+new mode 100644
+diff --git a/venv.sh b/venv.sh
+old mode 100755
+new mode 100644

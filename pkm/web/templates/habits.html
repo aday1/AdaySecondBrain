@@ -1,0 +1,255 @@
+{% extends "base.html" %}
+
+{% block content %}
+<!-- Include Sortable.js for drag-and-drop functionality -->
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.14.0/Sortable.min.js"></script>
+
+<div class="container-fluid">
+    <h1 class="mb-4">Habits Tracking</h1>
+
+    <div id="sortable-container">
+        <div class="row">
+            <div class="col-md-5">
+                <div class="sortable-item mb-4" data-id="log-habit-section">
+                    <div class="card">
+                        <div class="card-header grabbable">
+                            <h5 class="card-title mb-0">Log Habit</h5>
+                        </div>
+                        <div class="card-body">
+                            <form method="POST">
+                                <div class="mb-3">
+                                    <label for="habit" class="form-label">Habit Name</label>
+                                    <div class="input-group">
+                                        <select class="form-select" id="habit" name="habit" required>
+                                            <option value="">Select Habit</option>
+                                            {% for habit in habits %}
+                                            <option value="{{ habit[0] }}">{{ habit[0] }}</option>
+                                            {% endfor %}
+                                            <option value="new">+ Add New Habit</option>
+                                        </select>
+                                        <button type="button" class="btn btn-danger" id="deleteHabitBtn" disabled>
+                                            Delete Habit
+                                        </button>
+                                    </div>
+                                    <input type="text" class="form-control mt-2 d-none" id="new-habit" placeholder="Enter new habit name">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="notes" class="form-label">Notes</label>
+                                    <textarea class="form-control" id="notes" name="notes" rows="3"></textarea>
+                                </div>
+                                <button type="submit" class="btn btn-primary">Log Habit</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="sortable-item mb-4" data-id="quick-stats-section">
+                    <div class="card">
+                        <div class="card-header grabbable">
+                            <h5 class="card-title mb-0">Quick Stats</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-6">
+                                    <div class="text-center">
+                                        <h6>Total Habits</h6>
+                                        <div class="h3">{{ habits|length }}</div>
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="text-center">
+                                        <h6>Week's Completions</h6>
+                                        <div class="h3">{{ habits|sum(attribute='1') }}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-7">
+                <div class="sortable-item mb-4" data-id="habit-overview-section">
+                    <div class="card">
+                        <div class="card-header grabbable">
+                            <h5 class="card-title mb-0">Habit Overview</h5>
+                        </div>
+                        <div class="card-body">
+                            {% if habits %}
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Habit</th>
+                                            <th>Weekly Completions</th>
+                                            <th>Progress</th>
+                                            <th>Recent Notes</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for habit in habits %}
+                                        <tr>
+                                            <td>{{ habit[0] }}</td>
+                                            <td>{{ habit[1] }}</td>
+                                            <td>
+                                                <div class="progress">
+                                                    {% set progress = (habit[1] / 7.0 * 100)|round|int %}
+                                                    <div class="progress-bar {% if progress >= 100 %}bg-success{% elif progress >= 50 %}bg-info{% else %}bg-warning{% endif %}"
+                                                         role="progressbar"
+                                                         style="width: {{ progress }}%"
+                                                         aria-valuenow="{{ progress }}"
+                                                         aria-valuemin="0"
+                                                         aria-valuemax="100">{{ progress }}%</div>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                {% if habit[2] %}
+                                                <div class="notes-container">
+                                                    {% for note in habit[2].split(',') %}
+                                                        {% if note %}
+                                                        <div class="note-item mb-1">{{ note }}</div>
+                                                        {% endif %}
+                                                    {% endfor %}
+                                                </div>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {% else %}
+                            <p class="text-center">No habits tracked yet</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="sortable-item mb-4" data-id="habit-streaks-section">
+                    <div class="card">
+                        <div class="card-header grabbable">
+                            <h5 class="card-title mb-0">Habit Streaks</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                {% for habit in habits[:4] %}
+                                <div class="col-md-6 mb-3">
+                                    <div class="card">
+                                        <div class="card-body">
+                                            <h6 class="card-title">{{ habit[0] }}</h6>
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <span class="text-muted">Current Streak:</span>
+                                                <span class="badge bg-primary">{{ habit[1] }} days</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+#sortable-container {
+    min-height: 50px;
+    padding: 10px;
+}
+.sortable-item {
+    margin-bottom: 20px;
+    transition: transform 0.2s ease;
+}
+.sortable-item.sortable-ghost {
+    opacity: 0.4;
+}
+.sortable-item.sortable-chosen {
+    background-color: #f8f9fa;
+}
+.grabbable {
+    cursor: move;
+    cursor: grab;
+    cursor: -moz-grab;
+    cursor: -webkit-grab;
+    background-color: #f8f9fa;
+    padding: 10px;
+    border-bottom: 2px solid #dee2e6;
+}
+.grabbable:active {
+    cursor: grabbing;
+    cursor: -moz-grabbing;
+    cursor: -webkit-grabbing;
+}
+.notes-container {
+    max-height: 100px;
+    overflow-y: auto;
+}
+.note-item {
+    padding: 2px 5px;
+    background-color: #f8f9fa;
+    border-radius: 3px;
+    font-size: 0.9em;
+}
+</style>
+
+<script>
+// Initialize Sortable for the container
+new Sortable(document.getElementById('sortable-container'), {
+    animation: 150,
+    handle: '.grabbable',
+    ghostClass: 'sortable-ghost',
+    chosenClass: 'sortable-chosen'
+});
+
+// Handle habit selection and new habit input
+document.getElementById('habit').addEventListener('change', function() {
+    const newHabitInput = document.getElementById('new-habit');
+    const deleteHabitBtn = document.getElementById('deleteHabitBtn');
+    
+    if (this.value === 'new') {
+        newHabitInput.classList.remove('d-none');
+        newHabitInput.required = true;
+        deleteHabitBtn.disabled = true;
+    } else {
+        newHabitInput.classList.add('d-none');
+        newHabitInput.required = false;
+        deleteHabitBtn.disabled = this.value === '';
+    }
+});
+
+// Handle form submission
+document.querySelector('form').addEventListener('submit', function(e) {
+    const habitSelect = document.getElementById('habit');
+    const newHabitInput = document.getElementById('new-habit');
+    
+    if (habitSelect.value === 'new' && !newHabitInput.value.trim()) {
+        e.preventDefault();
+        alert('Please enter a name for the new habit');
+    }
+});
+
+// Handle habit deletion
+document.getElementById('deleteHabitBtn').addEventListener('click', function() {
+    const habitSelect = document.getElementById('habit');
+    const habitName = habitSelect.value;
+    
+    if (confirm(`Are you sure you want to delete the habit "${habitName}"?`)) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.style.display = 'none';
+        
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'delete_habit';
+        input.value = habitName;
+        
+        form.appendChild(input);
+        document.body.appendChild(form);
+        form.submit();
+    }
+});
+</script>
+{% endblock %}

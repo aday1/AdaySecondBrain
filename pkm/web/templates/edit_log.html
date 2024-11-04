@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block content %}
+<!-- Include Sortable.js for consistent styling -->
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.14.0/Sortable.min.js"></script>
+
+<div class="container-fluid">
+    <h1 class="mb-4">Edit Log - {{ date|format_date }}</h1>
+
+    <div id="sortable-container">
+        <div class="sortable-item mb-4" data-id="edit-log-section">
+            <div class="card">
+                <div class="card-header grabbable">
+                    <h5 class="card-title mb-0">Edit Content</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        <div class="form-group mb-3">
+                            <textarea name="content" id="content" class="form-control markdown-editor" rows="20">{{ content }}</textarea>
+                        </div>
+                        <div class="form-group">
+                            <button type="submit" class="btn btn-primary">Save Changes</button>
+                            <a href="{{ url_for('daily_logs') }}" class="btn btn-secondary">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Sortable styles for consistency */
+#sortable-container {
+    min-height: 50px;
+    padding: 10px;
+}
+.sortable-item {
+    margin-bottom: 20px;
+    transition: transform 0.2s ease;
+}
+.grabbable {
+    cursor: default;
+    background-color: #f8f9fa;
+    padding: 10px;
+    border-bottom: 2px solid #dee2e6;
+}
+
+/* Editor styles */
+.markdown-editor {
+    font-family: monospace;
+    font-size: 14px;
+    line-height: 1.6;
+    tab-size: 4;
+    resize: vertical;
+}
+</style>
+{% endblock %}

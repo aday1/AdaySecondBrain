@@ -1,0 +1,316 @@
+{% extends "base.html" %}
+
+{% block content %}
+<!-- Include Sortable.js for drag-and-drop functionality -->
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.14.0/Sortable.min.js"></script>
+
+<div class="container-fluid">
+    <h1 class="mb-4">Work Hours Tracking</h1>
+
+    <div id="sortable-container">
+        <div class="row">
+            <div class="col-md-5">
+                <div class="sortable-item mb-4" data-id="log-work-section">
+                    <div class="card">
+                        <div class="card-header grabbable">
+                            <h5 class="card-title mb-0">Log Work Hours</h5>
+                        </div>
+                        <div class="card-body">
+                            <form method="POST">
+                                <div class="mb-3">
+                                    <label for="project" class="form-label">Project</label>
+                                    <div class="input-group">
+                                        <select class="form-select" id="project" name="project" required>
+                                            <option value="">Select Project</option>
+                                            {% for project in projects %}
+                                            <option value="{{ project }}">{{ project }}</option>
+                                            {% endfor %}
+                                            <option value="new">+ Add New Project</option>
+                                        </select>
+                                        <button type="button" class="btn btn-danger" id="deleteProjectBtn" disabled>
+                                            Delete Project
+                                        </button>
+                                    </div>
+                                    <input type="text" class="form-control mt-2 d-none" id="new-project" placeholder="Enter new project name">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="hours" class="form-label">Hours Spent</label>
+                                    <input type="number" class="form-control" id="hours" name="hours" step="0.1" min="0.1" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="description" class="form-label">Description</label>
+                                    <textarea class="form-control" id="description" name="description" rows="3"></textarea>
+                                </div>
+                                <button type="submit" class="btn btn-primary">Log Work Hours</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-7">
+                <div class="sortable-item mb-4" data-id="recent-logs-section">
+                    <div class="card">
+                        <div class="card-header grabbable">
+                            <h5 class="card-title mb-0">Recent Work Logs</h5>
+                        </div>
+                        <div class="card-body">
+                            {% if work_logs %}
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Date</th>
+                                            <th>Project</th>
+                                            <th>Description</th>
+                                            <th>Hours</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for log in work_logs %}
+                                        <tr data-log-id="{{ log[4] }}">
+                                            <td>{{ log[0] }}</td>
+                                            <td class="editable project-cell">
+                                                <span class="display-text">{{ log[1] }}</span>
+                                                <select class="form-select edit-input d-none">
+                                                    {% for project in projects %}
+                                                    <option value="{{ project }}" {% if project == log[1] %}selected{% endif %}>{{ project }}</option>
+                                                    {% endfor %}
+                                                    <option value="new">+ Add New Project</option>
+                                                </select>
+                                            </td>
+                                            <td class="editable description-cell">
+                                                <span class="display-text">{{ log[2] if log[2] else '-' }}</span>
+                                                <textarea class="form-control edit-input d-none">{{ log[2] if log[2] else '' }}</textarea>
+                                            </td>
+                                            <td class="editable hours-cell">
+                                                <span class="display-text">{{ "%.1f"|format(log[3]) }}</span>
+                                                <input type="number" step="0.1" class="form-control edit-input d-none" value="{{ "%.1f"|format(log[3]) }}">
+                                            </td>
+                                            <td>
+                                                <button class="btn btn-sm btn-outline-primary edit-btn">Edit</button>
+                                                <button class="btn btn-sm btn-success save-btn d-none">Save</button>
+                                                <button class="btn btn-sm btn-danger cancel-btn d-none">Cancel</button>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                    <tfoot>
+                                        <tr class="table-info">
+                                            <td colspan="3"><strong>Total Hours (Last 7 Days)</strong></td>
+                                            <td colspan="2"><strong>{{ "%.1f"|format(work_logs|sum(attribute='3')) }}</strong></td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+                            {% else %}
+                            <p class="text-center">No recent work logs</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+#sortable-container {
+    min-height: 50px;
+    padding: 10px;
+}
+.sortable-item {
+    margin-bottom: 20px;
+    transition: transform 0.2s ease;
+}
+.sortable-item.sortable-ghost {
+    opacity: 0.4;
+}
+.sortable-item.sortable-chosen {
+    background-color: #f8f9fa;
+}
+.grabbable {
+    cursor: move;
+    cursor: grab;
+    cursor: -moz-grab;
+    cursor: -webkit-grab;
+    background-color: #f8f9fa;
+    padding: 10px;
+    border-bottom: 2px solid #dee2e6;
+}
+.grabbable:active {
+    cursor: grabbing;
+    cursor: -moz-grabbing;
+    cursor: -webkit-grabbing;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize Sortable for drag-and-drop
+    new Sortable(document.getElementById('sortable-container'), {
+        animation: 150,
+        handle: '.grabbable',
+        ghostClass: 'sortable-ghost',
+        chosenClass: 'sortable-chosen',
+        dragClass: 'sortable-drag',
+        onEnd: function(evt) {
+            // Save the new order if needed
+            const order = Array.from(evt.to.children).map(item => item.dataset.id);
+            console.log('New order:', order);
+            // Save to localStorage
+            localStorage.setItem('workOrder', JSON.stringify(order));
+        }
+    });
+
+    // Load saved order if exists
+    const savedOrder = localStorage.getItem('workOrder');
+    if (savedOrder) {
+        const container = document.getElementById('sortable-container');
+        const itemsArray = Array.from(container.children);
+        const orderArray = JSON.parse(savedOrder);
+        
+        // Reorder elements
+        orderArray.forEach(id => {
+            const element = itemsArray.find(item => item.dataset.id === id);
+            if (element) {
+                container.appendChild(element);
+            }
+        });
+    }
+
+    // Handle project dropdown in the form
+    const projectSelect = document.getElementById('project');
+    const newProjectInput = document.getElementById('new-project');
+    const deleteProjectBtn = document.getElementById('deleteProjectBtn');
+
+    projectSelect.addEventListener('change', function() {
+        if (this.value === 'new') {
+            newProjectInput.classList.remove('d-none');
+            newProjectInput.required = true;
+            deleteProjectBtn.disabled = true;
+        } else if (this.value === '') {
+            newProjectInput.classList.add('d-none');
+            newProjectInput.required = false;
+            deleteProjectBtn.disabled = true;
+        } else {
+            newProjectInput.classList.add('d-none');
+            newProjectInput.required = false;
+            deleteProjectBtn.disabled = false;
+        }
+    });
+
+    // Handle project deletion
+    deleteProjectBtn.addEventListener('click', async function() {
+        const projectName = projectSelect.value;
+        if (!projectName || projectName === 'new') return;
+
+        if (!confirm(`Are you sure you want to delete the project "${projectName}"? This will delete all work logs associated with this project.`)) {
+            return;
+        }
+
+        try {
+            const response = await fetch('/delete_project', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    project: projectName
+                })
+            });
+
+            if (response.ok) {
+                // Remove the project from all dropdowns
+                const projectOptions = document.querySelectorAll(`option[value="${projectName}"]`);
+                projectOptions.forEach(option => option.remove());
+                
+                // Reset the main project select
+                projectSelect.value = '';
+                deleteProjectBtn.disabled = true;
+                
+                // Show success message
+                alert('Project deleted successfully');
+                
+                // Reload the page to refresh the work logs
+                window.location.reload();
+            } else {
+                throw new Error('Failed to delete project');
+            }
+        } catch (error) {
+            alert('Error deleting project: ' + error.message);
+        }
+    });
+
+    // Handle inline editing
+    document.querySelectorAll('.edit-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const row = this.closest('tr');
+            row.querySelectorAll('.display-text').forEach(span => span.classList.add('d-none'));
+            row.querySelectorAll('.edit-input').forEach(input => input.classList.remove('d-none'));
+            row.querySelector('.edit-btn').classList.add('d-none');
+            row.querySelector('.save-btn').classList.remove('d-none');
+            row.querySelector('.cancel-btn').classList.remove('d-none');
+        });
+    });
+
+    document.querySelectorAll('.cancel-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const row = this.closest('tr');
+            row.querySelectorAll('.display-text').forEach(span => span.classList.remove('d-none'));
+            row.querySelectorAll('.edit-input').forEach(input => input.classList.add('d-none'));
+            row.querySelector('.edit-btn').classList.remove('d-none');
+            row.querySelector('.save-btn').classList.add('d-none');
+            row.querySelector('.cancel-btn').classList.add('d-none');
+        });
+    });
+
+    document.querySelectorAll('.save-btn').forEach(btn => {
+        btn.addEventListener('click', async function() {
+            const row = this.closest('tr');
+            const logId = row.dataset.logId;
+            const project = row.querySelector('.project-cell .edit-input').value;
+            const description = row.querySelector('.description-cell .edit-input').value;
+            const hours = row.querySelector('.hours-cell .edit-input').value;
+
+            try {
+                const response = await fetch('/update_work_log', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        id: logId,
+                        project: project,
+                        description: description,
+                        total_hours: hours
+                    })
+                });
+
+                if (response.ok) {
+                    // Update display values
+                    row.querySelector('.project-cell .display-text').textContent = project;
+                    row.querySelector('.description-cell .display-text').textContent = description || '-';
+                    row.querySelector('.hours-cell .display-text').textContent = parseFloat(hours).toFixed(1);
+
+                    // Reset edit mode
+                    row.querySelectorAll('.display-text').forEach(span => span.classList.remove('d-none'));
+                    row.querySelectorAll('.edit-input').forEach(input => input.classList.add('d-none'));
+                    row.querySelector('.edit-btn').classList.remove('d-none');
+                    row.querySelector('.save-btn').classList.add('d-none');
+                    row.querySelector('.cancel-btn').classList.add('d-none');
+
+                    // Show success message
+                    alert('Work log updated successfully');
+                } else {
+                    throw new Error('Failed to update work log');
+                }
+            } catch (error) {
+                alert('Error updating work log: ' + error.message);
+            }
+        });
+    });
+});
+</script>
+{% endblock %}
