@@ -500,9 +500,12 @@ def alcohol():
         conn = pkm.get_db_connection()
         cursor = conn.cursor()
         
-        # Get recent logs with IDs
+        # Get recent logs with IDs and calculate weekly total
         cursor.execute('''
-            SELECT id, date, drink_type, units, notes
+            SELECT id, date, drink_type, units, notes,
+                   (SELECT SUM(units) 
+                    FROM alcohol_logs 
+                    WHERE date >= date('now', '-7 days')) as weekly_total
             FROM alcohol_logs
             WHERE date >= date('now', '-7 days')
             ORDER BY date DESC
@@ -518,9 +521,15 @@ def alcohol():
         ''')
         drink_types = [row[0] for row in cursor.fetchall()]
         
+        # Calculate weekly total
+        weekly_total = alcohol_logs[0][5] if alcohol_logs else 0
+        
         conn.close()
         
-        return render_template('alcohol.html', alcohol_logs=alcohol_logs, drink_types=drink_types)
+        return render_template('alcohol.html', 
+                             alcohol_logs=alcohol_logs, 
+                             drink_types=drink_types,
+                             weekly_total=weekly_total)
     except Exception as e:
         flash(f'An unexpected error occurred: {str(e)}')
         return redirect(url_for('index'))

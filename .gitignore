@@ -54,3 +54,6 @@ Thumbs.db
 # Logs
 *.log
 logs/
+
+#Other
+demo_data.json

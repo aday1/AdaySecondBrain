@@ -56,32 +56,19 @@
                     <h5 class="card-title mb-0">Weekly Summary</h5>
                 </div>
                 <div class="card-body">
-                    {% if alcohol_logs %}
-                        {% set total_units = 0 %}
-                        {% for log in alcohol_logs %}
-                            {% set total_units = total_units + log[3] %}
-                        {% endfor %}
-                    {% else %}
-                        {% set total_units = 0 %}
-                    {% endif %}
-
                     <div class="row text-center">
                         <div class="col-6">
                             <h6>Total Standard Drinks</h6>
-                            <div class="h3">{{ "%.1f"|format(total_units) }}</div>
+                            <div class="h3">{{ "%.1f"|format(weekly_total) }}</div>
                         </div>
                         <div class="col-6">
                             <h6>Daily Average</h6>
-                            <div class="h3">{{ "%.1f"|format(total_units / 7) }}</div>
+                            <div class="h3">{{ "%.1f"|format(weekly_total / 7) }}</div>
                         </div>
                     </div>
                     <div class="mt-3">
                         {% set recommended = 10 %}
-                        {% if recommended > 0 and total_units is defined %}
-                            {% set percent = ((total_units / recommended * 100)|round|int) %}
-                        {% else %}
-                            {% set percent = 0 %}
-                        {% endif %}
+                        {% set percent = ((weekly_total / recommended * 100)|round|int) %}
                         <label class="form-label">Weekly Limit (10 standard drinks)</label>
                         <div class="progress">
                             <div class="progress-bar {% if percent > 100 %}bg-danger{% elif percent > 75 %}bg-warning{% else %}bg-success{% endif %}"
