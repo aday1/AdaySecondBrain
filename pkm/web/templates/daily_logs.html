@@ -1,173 +1,73 @@
 {% extends "base.html" %}
 
 {% block content %}
-<!-- Include Sortable.js for drag-and-drop functionality -->
-<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.14.0/Sortable.min.js"></script>
-
 <div class="container-fluid">
     <h1 class="mb-4">Daily Logs</h1>
 
-    <div id="sortable-container">
-        <div class="sortable-item mb-4" data-id="create-log-section">
-            <div class="card">
-                <div class="card-header grabbable">
-                    <h5 class="card-title mb-0">Create New Log</h5>
-                </div>
-                <div class="card-body">
-                    <form method="POST" class="d-inline">
-                        <button type="submit" class="btn btn-success">Create Today's Log</button>
-                    </form>
-                </div>
-            </div>
+    <!-- Add New Log Form -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="card-title mb-0">Add New Log</h5>
         </div>
+        <div class="card-body">
+            <form method="POST">
+                <div class="mb-3">
+                    <label for="date" class="form-label">Date</label>
+                    <input type="date" class="form-control" id="date" name="date" required
+                           value="{{ request.form.get('date', today) }}">
+                </div>
+                <div class="mb-3">
+                    <label for="content" class="form-label">Content</label>
+                    <textarea class="form-control" id="content" name="content" rows="5" required>{{ request.form.get('content', '') }}</textarea>
+                </div>
+                <button type="submit" class="btn btn-primary">Save Log</button>
+            </form>
+        </div>
+    </div>
 
-        {% if logs %}
-            {% for log in logs %}
-            <div class="sortable-item mb-4" data-id="log-{{ log.date }}">
-                <div class="card">
-                    <div class="card-header grabbable d-flex justify-content-between align-items-center">
-                        <h5 class="card-title mb-0">{{ log.date|format_date }}</h5>
-                        <div>
-                            <a href="{{ url_for('edit_log', date=log.date) }}" class="btn btn-sm btn-primary me-2">
-                                Edit
-                            </a>
-                            <button class="btn btn-sm btn-outline-secondary" type="button" 
-                                    data-bs-toggle="collapse" 
-                                    data-bs-target="#log-content-{{ loop.index }}">
-                                Toggle Content
-                            </button>
-                        </div>
-                    </div>
-                    <div class="collapse show" id="log-content-{{ loop.index }}">
-                        <div class="card-body">
-                            <div class="markdown-content">
-                                {{ log.content|safe }}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            {% endfor %}
-        {% else %}
-        <div class="sortable-item mb-4" data-id="no-logs-section">
-            <div class="card">
-                <div class="card-header grabbable">
-                    <h5 class="card-title mb-0">No Logs</h5>
-                </div>
-                <div class="card-body">
-                    <div class="alert alert-info mb-0">
-                        No daily logs found. Create your first log using the button above.
-                    </div>
-                </div>
-            </div>
+    <!-- Recent Logs -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="card-title mb-0">Recent Logs</h5>
         </div>
-        {% endif %}
+        <div class="card-body">
+            {% if logs %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Content</th>
+                            <th>Created</th>
+                            <th>Last Updated</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for log in logs %}
+                        <tr>
+                            <td>{{ log[0] }}</td>
+                            <td>{{ log[1] }}</td>
+                            <td>{{ log[2] }}</td>
+                            <td>{{ log[3] }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="text-center">No daily logs found</p>
+            {% endif %}
+        </div>
     </div>
 </div>
 
-<style>
-/* Sortable styles */
-#sortable-container {
-    min-height: 50px;
-    padding: 10px;
-}
-.sortable-item {
-    margin-bottom: 20px;
-    transition: transform 0.2s ease;
-}
-.sortable-item.sortable-ghost {
-    opacity: 0.4;
-}
-.sortable-item.sortable-chosen {
-    background-color: #f8f9fa;
-}
-.grabbable {
-    cursor: grab;
-    background-color: #f8f9fa;
-    padding: 10px;
-    border-bottom: 2px solid #dee2e6;
-}
-.grabbable:active {
-    cursor: grabbing;
-}
-
-/* Markdown content styles */
-.markdown-content {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-    line-height: 1.6;
-    color: #333;
-}
-.markdown-content h1 { font-size: 2rem; margin-top: 1rem; margin-bottom: 1rem; }
-.markdown-content h2 { font-size: 1.75rem; margin-top: 0.875rem; margin-bottom: 0.875rem; }
-.markdown-content h3 { font-size: 1.5rem; margin-top: 0.75rem; margin-bottom: 0.75rem; }
-.markdown-content h4 { font-size: 1.25rem; margin-top: 0.625rem; margin-bottom: 0.625rem; }
-.markdown-content p { margin-bottom: 1rem; }
-.markdown-content ul, .markdown-content ol { margin-bottom: 1rem; padding-left: 2rem; }
-.markdown-content li { margin-bottom: 0.5rem; }
-.markdown-content code {
-    background-color: #f8f9fa;
-    padding: 0.2rem 0.4rem;
-    border-radius: 0.25rem;
-    font-size: 0.875em;
-}
-.markdown-content pre {
-    background-color: #f8f9fa;
-    padding: 1rem;
-    border-radius: 0.25rem;
-    overflow-x: auto;
-}
-.markdown-content blockquote {
-    border-left: 4px solid #dee2e6;
-    padding-left: 1rem;
-    margin-left: 0;
-    color: #6c757d;
-}
-.markdown-content table {
-    width: 100%;
-    margin-bottom: 1rem;
-    border-collapse: collapse;
-}
-.markdown-content th, .markdown-content td {
-    padding: 0.75rem;
-    border: 1px solid #dee2e6;
-}
-.markdown-content th {
-    background-color: #f8f9fa;
-}
-</style>
-
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Initialize Sortable for drag-and-drop
-    new Sortable(document.getElementById('sortable-container'), {
-        animation: 150,
-        handle: '.grabbable',
-        ghostClass: 'sortable-ghost',
-        chosenClass: 'sortable-chosen',
-        dragClass: 'sortable-drag',
-        onEnd: function(evt) {
-            // Save the new order if needed
-            const order = Array.from(evt.to.children).map(item => item.dataset.id);
-            console.log('New order:', order);
-            // Save to localStorage
-            localStorage.setItem('dailyLogsOrder', JSON.stringify(order));
-        }
-    });
-
-    // Load saved order if exists
-    const savedOrder = localStorage.getItem('dailyLogsOrder');
-    if (savedOrder) {
-        const container = document.getElementById('sortable-container');
-        const itemsArray = Array.from(container.children);
-        const orderArray = JSON.parse(savedOrder);
-        
-        // Reorder elements
-        orderArray.forEach(id => {
-            const element = itemsArray.find(item => item.dataset.id === id);
-            if (element) {
-                container.appendChild(element);
-            }
-        });
+    // Set default date to today if not set
+    const dateInput = document.getElementById('date');
+    if (!dateInput.value) {
+        const today = new Date().toISOString().split('T')[0];
+        dateInput.value = today;
     }
 });
 </script>

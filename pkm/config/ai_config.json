@@ -1,0 +1,20 @@
+{
+    "ollama": {
+        "enabled": true,
+        "default_model": "mistral",
+        "local_only": true,
+        "timeout": 30,
+        "max_tokens": 2048
+    },
+    "analysis": {
+        "auto_analyze_daily": false,
+        "track_mood": true,
+        "track_anxiety": true,
+        "extract_topics": true
+    },
+    "privacy": {
+        "data_retention_days": 90,
+        "backup_frequency": "daily",
+        "encryption_enabled": true
+    }
+}

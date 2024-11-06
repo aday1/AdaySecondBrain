@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="config-section">
+    <h2>Application Configuration</h2>
+    
+    <!-- Theme Settings -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h3>Theme Settings</h3>
+        </div>
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('save_theme_config') }}">
+                <div class="mb-3">
+                    <label for="theme" class="form-label">Theme</label>
+                    <select class="form-select" id="theme" name="theme">
+                        <option value="matrix" {% if config.theme == 'matrix' %}selected{% endif %}>Matrix Terminal</option>
+                        <option value="cga" {% if config.theme == 'cga' %}selected{% endif %}>CGA DOS</option>
+                        <option value="synthwave" {% if config.theme == 'synthwave' %}selected{% endif %}>Synthwave</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Mode</label>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="mode" value="dark" {% if config.mode == 'dark' %}checked{% endif %}>
+                        <label class="form-check-label">Dark Mode</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="mode" value="light" {% if config.mode == 'light' %}checked{% endif %}>
+                        <label class="form-check-label">Light Mode</label>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary">Save Theme Settings</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- AI Settings -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h3>AI Configuration</h3>
+        </div>
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('save_ai_config') }}">
+                <div class="mb-3">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="ai_enabled" name="ai_enabled" {% if config.ai.enabled %}checked{% endif %}>
+                        <label class="form-check-label" for="ai_enabled">Enable AI Features</label>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label for="ai_model" class="form-label">Ollama Model</label>
+                    <select class="form-select" id="ai_model" name="ai_model">
+                        <option value="llama2" {% if config.ai.model == 'llama2' %}selected{% endif %}>Llama 2</option>
+                        <option value="mistral" {% if config.ai.model == 'mistral' %}selected{% endif %}>Mistral</option>
+                        <option value="codellama" {% if config.ai.model == 'codellama' %}selected{% endif %}>CodeLlama</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary">Save AI Settings</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Display Settings -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h3>Display Settings</h3>
+        </div>
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('save_display_config') }}">
+                <div class="mb-3">
+                    <label for="date_format" class="form-label">Date Format</label>
+                    <select class="form-select" id="date_format" name="date_format">
+                        <option value="YYYY-MM-DD" {% if config.display.date_format == 'YYYY-MM-DD' %}selected{% endif %}>YYYY-MM-DD</option>
+                        <option value="MM/DD/YYYY" {% if config.display.date_format == 'MM/DD/YYYY' %}selected{% endif %}>MM/DD/YYYY</option>
+                        <option value="DD/MM/YYYY" {% if config.display.date_format == 'DD/MM/YYYY' %}selected{% endif %}>DD/MM/YYYY</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary">Save Display Settings</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

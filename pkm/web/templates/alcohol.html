@@ -4,6 +4,40 @@
 <!-- Include Sortable.js for drag-and-drop functionality -->
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.14.0/Sortable.min.js"></script>
 
+<style>
+    #sortable-container {
+        min-height: 50px;
+        padding: 10px;
+    }
+    .sortable-item {
+        margin-bottom: 20px;
+        transition: transform 0.2s ease;
+    }
+    .sortable-item.sortable-ghost {
+        opacity: 0.4;
+    }
+    .sortable-item.sortable-chosen {
+        background-color: #f8f9fa;
+    }
+    .grabbable {
+        cursor: move;
+        cursor: grab;
+        cursor: -moz-grab;
+        cursor: -webkit-grab;
+        background-color: #f8f9fa;
+        padding: 10px;
+        border-bottom: 2px solid #dee2e6;
+    }
+    .grabbable:active {
+        cursor: grabbing;
+        cursor: -moz-grabbing;
+        cursor: -webkit-grabbing;
+    }
+    .edit-mode {
+        display: none;
+    }
+</style>
+
 <div class="container-fluid">
     <h1 class="mb-4">Alcohol Consumption Tracking</h1>
 
@@ -69,11 +103,21 @@
                     <div class="mt-3">
                         {% set recommended = 10 %}
                         {% set percent = ((weekly_total / recommended * 100)|round|int) %}
+                        {% if percent > 100 %}
+                            {% set display_percent = 100 %}
+                            {% set bar_class = "bg-danger" %}
+                        {% elif percent > 75 %}
+                            {% set display_percent = percent %}
+                            {% set bar_class = "bg-warning" %}
+                        {% else %}
+                            {% set display_percent = percent %}
+                            {% set bar_class = "bg-success" %}
+                        {% endif %}
                         <label class="form-label">Weekly Limit (10 standard drinks)</label>
                         <div class="progress">
-                            <div class="progress-bar {% if percent > 100 %}bg-danger{% elif percent > 75 %}bg-warning{% else %}bg-success{% endif %}"
+                            <div class="progress-bar {{ bar_class }}"
                                  role="progressbar"
-                                 style="width: {{ min(percent, 100) }}%"
+                                 style="width: {{ display_percent }}%"
                                  aria-valuenow="{{ percent }}"
                                  aria-valuemin="0"
                                  aria-valuemax="100">{{ percent }}%</div>
@@ -198,40 +242,6 @@
         </div>
     </div>
 </div>
-
-<style>
-#sortable-container {
-    min-height: 50px;
-    padding: 10px;
-}
-.sortable-item {
-    margin-bottom: 20px;
-    transition: transform 0.2s ease;
-}
-.sortable-item.sortable-ghost {
-    opacity: 0.4;
-}
-.sortable-item.sortable-chosen {
-    background-color: #f8f9fa;
-}
-.grabbable {
-    cursor: move;
-    cursor: grab;
-    cursor: -moz-grab;
-    cursor: -webkit-grab;
-    background-color: #f8f9fa;
-    padding: 10px;
-    border-bottom: 2px solid #dee2e6;
-}
-.grabbable:active {
-    cursor: grabbing;
-    cursor: -moz-grabbing;
-    cursor: -webkit-grabbing;
-}
-.edit-mode {
-    display: none;
-}
-</style>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {

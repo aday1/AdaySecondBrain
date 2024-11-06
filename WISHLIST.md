@@ -2,15 +2,9 @@
 
 ## Planned Features
 
-### YQS Schema
-- Implement Yesterday, Questions, and Scribbles (YQS) schema for daily logs
-- Structured format for reflecting on previous day's activities
-- Section for questions that arose during the day
-- Space for random thoughts and ideas (scribbles)
-
 ### Anxiety Scores (SUDS)
 - Add Subjective Units of Distress Scale (SUDS) tracking
-- Scale of 0-100 for measuring anxiety/distress levels
+- Scale of 0-10 for measuring anxiety/distress levels
 - Track anxiety levels throughout the day
 - Visualize anxiety patterns over time
 - Add notes/triggers for high anxiety periods
@@ -31,20 +25,21 @@
 
 Wishlist
 
-TODO: Add documentation for this section
+- Ollama linking and model selection
 
 Planned
 
-TODO: Add documentation for this section
+AI Feedback
 
 Features
 
-TODO: Add documentation for this section
+Texual Console option and WebUI Continuity
 
 Improvements
 
-TODO: Add documentation for this section
-
+- Goal Planning
+- Milestone Tracking
+- Personal Roadmap Creation and tracking
 Future
 
 TODO: Add documentation for this section

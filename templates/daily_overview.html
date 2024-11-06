@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="date-navigation">
+    <button id="prevDay" class="nav-btn">← Previous</button>
+    <span id="currentDate"></span>
+    <button id="nextDay" class="nav-btn">Next →</button>
+</div>
+
+<div class="daily-graph-container">
+    <div id="dailyMetricsSlider">
+        <input type="range" id="visualRange" min="0" max="100" value="100">
+        <div class="range-labels">
+            <span>00:00</span>
+            <span>24:00</span>
+        </div>
+    </div>
+    <div id="dailyMetricsGraph"></div>
+</div>
+{% endblock %}

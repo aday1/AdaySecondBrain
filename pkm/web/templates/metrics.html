@@ -1,129 +1,64 @@
 {% extends "base.html" %}
 
 {% block content %}
-<!-- Include Sortable.js for drag-and-drop functionality -->
-<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.14.0/Sortable.min.js"></script>
-
 <div class="container-fluid">
     <h1 class="mb-4">Daily Metrics</h1>
 
-    <div id="sortable-container">
-        <div class="row">
-            <!-- Daily Overview Trend Section -->
-            <div class="col-12 mb-4">
-                <div class="sortable-item" data-id="daily-overview-section">
-                    <div class="card">
-                        <div class="card-header grabbable">
-                            <h5 class="card-title mb-0">Daily Overview</h5>
-                        </div>
-                        <div class="card-body">
-                            <canvas id="trendChart" style="width: 100%; height: 300px;"></canvas>
-                        </div>
+    <!-- Date Navigation -->
+    <div class="date-navigation mb-4">
+        <button id="prevDay" class="btn btn-outline-primary">← Previous</button>
+        <span id="currentDate" class="mx-3"></span>
+        <button id="nextDay" class="btn btn-outline-primary">Next →</button>
+    </div>
+
+    <!-- Time Range Controls -->
+    <div class="metrics-controls mb-4">
+        <div class="date-range-inputs">
+            <input type="date" id="startDate" name="startDate" class="form-control">
+            <span class="mx-2">to</span>
+            <input type="date" id="endDate" name="endDate" class="form-control">
+            <button onclick="updateDateRange()" class="btn btn-primary ms-2">Apply</button>
+        </div>
+        
+        <div class="range-slider mt-3">
+            <input type="range" id="timeSlider" class="form-range" min="0" max="100" value="100">
+            <div class="slider-labels d-flex justify-content-between text-muted">
+                <span id="sliderStartDate"></span>
+                <span id="sliderEndDate"></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Metrics Chart -->
+    <div class="card">
+        <div class="card-body">
+            <canvas id="metricsChart" style="width: 100%; height: 400px;"></canvas>
+        </div>
+    </div>
+
+    <!-- Today's Summary -->
+    <div class="card mt-4">
+        <div class="card-header">
+            <h5 class="card-title mb-0">Today's Summary</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="text-center">
+                        <h6>Productivity</h6>
+                        <div class="display-4" id="productivityValue">-</div>
                     </div>
                 </div>
-            </div>
-
-            <div class="col-md-6">
-                <div class="sortable-item mb-4" data-id="log-metrics-section">
-                    <div class="card">
-                        <div class="card-header grabbable">
-                            <h5 class="card-title mb-0">Log Today's Metrics</h5>
-                        </div>
-                        <div class="card-body">
-                            <form method="POST">
-                                <div class="mb-4">
-                                    <label for="mood" class="form-label d-flex justify-content-between">
-                                        Mood
-                                        <span class="badge bg-primary" id="moodValue">5</span>
-                                    </label>
-                                    <input type="range" class="form-range custom-range" id="mood" name="mood" 
-                                           min="1" max="10" step="1" value="{{ metrics[2] if metrics else 5 }}"
-                                           oninput="updateValue('mood')">
-                                    <div class="d-flex justify-content-between text-muted small">
-                                        <span>😢 Low</span>
-                                        <span>😊 High</span>
-                                    </div>
-                                </div>
-
-                                <div class="mb-4">
-                                    <label for="energy" class="form-label d-flex justify-content-between">
-                                        Energy
-                                        <span class="badge bg-primary" id="energyValue">5</span>
-                                    </label>
-                                    <input type="range" class="form-range custom-range" id="energy" name="energy" 
-                                           min="1" max="10" step="1" value="{{ metrics[3] if metrics else 5 }}"
-                                           oninput="updateValue('energy')">
-                                    <div class="d-flex justify-content-between text-muted small">
-                                        <span>🔋 Low</span>
-                                        <span>⚡ High</span>
-                                    </div>
-                                </div>
-
-                                <div class="mb-4">
-                                    <label for="sleep" class="form-label d-flex justify-content-between">
-                                        Sleep Hours
-                                        <span class="badge bg-primary" id="sleepValue">7.5</span>
-                                    </label>
-                                    <input type="range" class="form-range custom-range" id="sleep" name="sleep" 
-                                           min="0" max="12" step="0.5" value="{{ metrics[4] if metrics else 7.5 }}"
-                                           oninput="updateValue('sleep')">
-                                    <div class="d-flex justify-content-between text-muted small">
-                                        <span>0h</span>
-                                        <span>12h</span>
-                                    </div>
-                                </div>
-
-                                <div class="mb-4">
-                                    <label for="notes" class="form-label">Notes</label>
-                                    <textarea class="form-control" id="notes" name="notes" rows="3">{{ metrics[5] if metrics }}</textarea>
-                                </div>
-
-                                <button type="submit" class="btn btn-primary">Save Metrics</button>
-                            </form>
-                        </div>
+                <div class="col-md-4">
+                    <div class="text-center">
+                        <h6>Focus</h6>
+                        <div class="display-4" id="focusValue">-</div>
                     </div>
                 </div>
-            </div>
-
-            <div class="col-md-6">
-                <div class="sortable-item mb-4" data-id="today-summary-section">
-                    <div class="card">
-                        <div class="card-header grabbable">
-                            <h5 class="card-title mb-0">Today's Summary</h5>
-                        </div>
-                        <div class="card-body">
-                            {% if metrics %}
-                            <div class="row">
-                                <div class="col-md-4">
-                                    <div class="text-center">
-                                        <h6>Mood</h6>
-                                        <div class="display-4">{{ metrics[2] }}/10</div>
-                                        <div class="text-muted">{{ "😢" if metrics[2] < 5 else "😐" if metrics[2] == 5 else "😊" }}</div>
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="text-center">
-                                        <h6>Energy</h6>
-                                        <div class="display-4">{{ metrics[3] }}/10</div>
-                                        <div class="text-muted">{{ "🔋" if metrics[3] < 5 else "🔋" if metrics[3] == 5 else "⚡" }}</div>
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="text-center">
-                                        <h6>Sleep</h6>
-                                        <div class="display-4">{{ metrics[4] }}h</div>
-                                        <div class="text-muted">{{ "😴" if metrics[4] >= 7 else "😫" }}</div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="mt-4">
-                                <h6>Notes:</h6>
-                                <p>{{ metrics[5] if metrics[5] else 'No notes' }}</p>
-                            </div>
-                            {% else %}
-                            <p class="text-center">No metrics logged for today</p>
-                            {% endif %}
-                        </div>
+                <div class="col-md-4">
+                    <div class="text-center">
+                        <h6>Energy</h6>
+                        <div class="display-4" id="energyValue">-</div>
                     </div>
                 </div>
             </div>
@@ -132,191 +67,160 @@
 </div>
 
 <style>
-#sortable-container {
-    min-height: 50px;
-    padding: 10px;
+.metrics-controls {
+    background-color: var(--bs-body-bg);
+    padding: 1rem;
+    border-radius: 0.5rem;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
 }
-.sortable-item {
-    margin-bottom: 20px;
-    transition: transform 0.2s ease;
+
+.date-range-inputs {
+    display: flex;
+    align-items: center;
 }
-.sortable-item.sortable-ghost {
-    opacity: 0.4;
+
+.date-range-inputs input[type="date"] {
+    max-width: 200px;
 }
-.sortable-item.sortable-chosen {
-    background-color: #f8f9fa;
+
+.range-slider {
+    margin-top: 1rem;
 }
-.grabbable {
-    cursor: move;
-    cursor: grab;
-    cursor: -moz-grab;
-    cursor: -webkit-grab;
-    background-color: #f8f9fa;
-    padding: 10px;
-    border-bottom: 2px solid #dee2e6;
+
+.slider-labels {
+    margin-top: 0.5rem;
+    font-size: 0.875rem;
 }
-.grabbable:active {
-    cursor: grabbing;
-    cursor: -moz-grabbing;
-    cursor: -webkit-grabbing;
+
+.date-navigation {
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 </style>
 
 <script>
-// Initialize chart data
-const chartData = {
-    dates: {{ dates|tojson|safe if dates else '[]'|safe }},
-    moods: {{ moods|tojson|safe if moods else '[]'|safe }},
-    energies: {{ energies|tojson|safe if energies else '[]'|safe }},
-    sleepHours: {{ sleep_hours|tojson|safe if sleep_hours else '[]'|safe }}
-};
+let metricsChart = null;
+let currentDate = new Date();
 
-let trendChart;
-
-function getChartColors() {
-    const isDark = document.documentElement.getAttribute('data-bs-theme') === 'dark';
-    return {
-        gridColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
-        textColor: isDark ? '#f8f9fa' : '#212529'
-    };
+function initializeControls() {
+    document.getElementById('prevDay').addEventListener('click', () => navigateDay(-1));
+    document.getElementById('nextDay').addEventListener('click', () => navigateDay(1));
+    document.getElementById('timeSlider').addEventListener('input', updateVisualRange);
+    
+    // Set initial dates
+    const today = new Date();
+    const thirtyDaysAgo = new Date(today);
+    thirtyDaysAgo.setDate(today.getDate() - 30);
+    
+    document.getElementById('startDate').value = thirtyDaysAgo.toISOString().split('T')[0];
+    document.getElementById('endDate').value = today.toISOString().split('T')[0];
+    
+    updateDateDisplay();
+    loadDailyData();
 }
 
-function initTrendChart() {
-    const ctx = document.getElementById('trendChart').getContext('2d');
-    const colors = getChartColors();
+function navigateDay(offset) {
+    currentDate.setDate(currentDate.getDate() + offset);
+    updateDateDisplay();
+    loadDailyData();
+}
+
+function updateDateDisplay() {
+    document.getElementById('currentDate').textContent = 
+        currentDate.toLocaleDateString('en-US', { 
+            weekday: 'long', 
+            year: 'numeric', 
+            month: 'long', 
+            day: 'numeric' 
+        });
+}
+
+function updateDateRange() {
+    const startDate = document.getElementById('startDate').value;
+    const endDate = document.getElementById('endDate').value;
+    loadDailyData(startDate, endDate);
+}
+
+function updateVisualRange(e) {
+    if (!metricsChart) return;
     
-    trendChart = new Chart(ctx, {
+    const value = e.target.value;
+    const totalPoints = metricsChart.data.labels.length;
+    const visiblePoints = Math.max(Math.floor(totalPoints * (value / 100)), 1);
+    const startIdx = totalPoints - visiblePoints;
+    
+    metricsChart.data.labels = metricsChart.data.labels.slice(startIdx);
+    metricsChart.data.datasets.forEach(dataset => {
+        dataset.data = dataset.data.slice(startIdx);
+    });
+    
+    metricsChart.update();
+}
+
+async function loadDailyData(startDate, endDate) {
+    try {
+        const date = currentDate.toISOString().split('T')[0];
+        const response = await fetch(`/api/daily-data/${date}`);
+        const data = await response.json();
+        updateChart(data);
+        updateSummary(data);
+    } catch (error) {
+        console.error('Error loading daily data:', error);
+    }
+}
+
+function updateChart(data) {
+    const ctx = document.getElementById('metricsChart').getContext('2d');
+    
+    if (metricsChart) {
+        metricsChart.destroy();
+    }
+    
+    const labels = data.dataPoints.map(point => {
+        const date = new Date(point.timestamp);
+        return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    });
+    
+    const datasets = data.metrics.map((metric, index) => ({
+        label: metric.name,
+        data: data.dataPoints.map(point => point.values[index]),
+        borderColor: metric.color,
+        backgroundColor: `${metric.color}33`,
+        fill: true,
+        tension: 0.4
+    }));
+    
+    metricsChart = new Chart(ctx, {
         type: 'line',
-        data: {
-            labels: chartData.dates,
-            datasets: [
-                {
-                    label: 'Mood',
-                    data: chartData.moods,
-                    borderColor: '#ff6b6b',
-                    backgroundColor: 'rgba(255, 107, 107, 0.1)',
-                    tension: 0.4
-                },
-                {
-                    label: 'Energy',
-                    data: chartData.energies,
-                    borderColor: '#4ecdc4',
-                    backgroundColor: 'rgba(78, 205, 196, 0.1)',
-                    tension: 0.4
-                },
-                {
-                    label: 'Sleep Hours',
-                    data: chartData.sleepHours,
-                    borderColor: '#a78bfa',
-                    backgroundColor: 'rgba(167, 139, 250, 0.1)',
-                    tension: 0.4
-                }
-            ]
-        },
+        data: { labels, datasets },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            interaction: {
-                intersect: false,
-                mode: 'index'
-            },
             scales: {
                 y: {
-                    grid: {
-                        color: colors.gridColor
-                    },
-                    ticks: {
-                        color: colors.textColor
-                    }
-                },
-                x: {
-                    grid: {
-                        color: colors.gridColor
-                    },
-                    ticks: {
-                        color: colors.textColor
-                    }
+                    beginAtZero: true,
+                    max: 100
                 }
             },
             plugins: {
                 legend: {
-                    labels: {
-                        color: colors.textColor
-                    }
+                    position: 'top'
                 }
             }
         }
     });
 }
 
-// Function to update chart colors based on theme
-window.updateChartColors = function() {
-    if (trendChart) {
-        const colors = getChartColors();
-        trendChart.options.scales.y.grid.color = colors.gridColor;
-        trendChart.options.scales.x.grid.color = colors.gridColor;
-        trendChart.options.scales.y.ticks.color = colors.textColor;
-        trendChart.options.scales.x.ticks.color = colors.textColor;
-        trendChart.options.plugins.legend.labels.color = colors.textColor;
-        trendChart.update();
-    }
-};
-
-function updateValue(metric) {
-    const slider = document.getElementById(metric);
-    const value = document.getElementById(metric + 'Value');
-    value.textContent = slider.value;
-    
-    // Update emoji based on value
-    if (metric === 'mood' || metric === 'energy') {
-        const emoji = metric === 'mood' ? 
-            (slider.value < 5 ? '😢' : slider.value == 5 ? '😐' : '😊') :
-            (slider.value < 5 ? '🔋' : slider.value == 5 ? '🔋' : '⚡');
-        value.innerHTML = `${slider.value} ${emoji}`;
-    } else if (metric === 'sleep') {
-        const emoji = slider.value >= 7 ? '😴' : '😫';
-        value.innerHTML = `${slider.value}h ${emoji}`;
+function updateSummary(data) {
+    const lastPoint = data.dataPoints[data.dataPoints.length - 1];
+    if (lastPoint) {
+        document.getElementById('productivityValue').textContent = `${Math.round(lastPoint.values[0])}%`;
+        document.getElementById('focusValue').textContent = `${Math.round(lastPoint.values[1])}%`;
+        document.getElementById('energyValue').textContent = `${Math.round(lastPoint.values[2])}%`;
     }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-    // Initialize trend chart
-    initTrendChart();
-
-    // Initialize values on page load
-    ['mood', 'energy', 'sleep'].forEach(metric => updateValue(metric));
-
-    // Initialize Sortable for drag-and-drop
-    new Sortable(document.getElementById('sortable-container'), {
-        animation: 150,
-        handle: '.grabbable',
-        ghostClass: 'sortable-ghost',
-        chosenClass: 'sortable-chosen',
-        dragClass: 'sortable-drag',
-        onEnd: function(evt) {
-            // Save the new order if needed
-            const order = Array.from(evt.to.children).map(item => item.dataset.id);
-            console.log('New order:', order);
-            // Save to localStorage
-            localStorage.setItem('metricsOrder', JSON.stringify(order));
-        }
-    });
-
-    // Load saved order if exists
-    const savedOrder = localStorage.getItem('metricsOrder');
-    if (savedOrder) {
-        const container = document.getElementById('sortable-container');
-        const itemsArray = Array.from(container.children);
-        const orderArray = JSON.parse(savedOrder);
-        
-        // Reorder elements
-        orderArray.forEach(id => {
-            const element = itemsArray.find(item => item.dataset.id === id);
-            if (element) {
-                container.appendChild(element);
-            }
-        });
-    }
-});
+document.addEventListener('DOMContentLoaded', initializeControls);
 </script>
 {% endblock %}

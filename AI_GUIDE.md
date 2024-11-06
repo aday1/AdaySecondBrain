@@ -213,6 +213,61 @@ For all interfaces:
 - MUST review before merge
 - MUST test before merge
 
+## Usage
+
+### 1. Integration Points
+- Use this guide as reference when modifying system components
+- Consult relevant sections before making changes
+- Follow checklists for each type of modification
+- Verify changes against guidelines
+
+### 2. Development Workflow
+- Review system philosophy first
+- Check existing documentation
+- Plan changes according to guidelines
+- Follow testing requirements
+- Update documentation
+
+### 3. Quality Assurance
+- Use sanity checking guidelines
+- Verify against documentation requirements
+- Follow error handling protocols
+- Test according to requirements
+
+## Implementation
+
+### 1. Best Practices
+- Follow coding standards
+- Maintain consistent style
+- Use established patterns
+- Document all changes
+
+### 2. Common Patterns
+- Error handling templates
+- Database operations
+- User input validation
+- Interface updates
+
+### 3. Testing Strategy
+- Unit test requirements
+- Integration test approach
+- User interface testing
+- Performance testing
+
+## Features
+
+### 1. Core Features
+- Data management
+- User interfaces
+- Backup systems
+- Configuration options
+
+### 2. Feature Development
+- Planning process
+- Implementation steps
+- Testing requirements
+- Documentation updates
+
 Remember: The primary goal is to maintain and improve the system while preserving its core philosophy of data sovereignty, reliability, and user control.
 
 AI

@@ -1,0 +1,22 @@
+// ...existing code...
+<div class="metrics-controls">
+    <div class="date-range-inputs">
+        <input type="date" id="startDate" name="startDate">
+        <span>to</span>
+        <input type="date" id="endDate" name="endDate">
+        <button onclick="updateDateRange()">Apply</button>
+    </div>
+    
+    <div class="range-slider">
+        <input type="range" id="timeSlider" min="0" max="100" value="100">
+        <div class="slider-labels">
+            <span id="sliderStartDate"></span>
+            <span id="sliderEndDate"></span>
+        </div>
+    </div>
+</div>
+
+<div id="metricsChart">
+    <!-- existing chart content -->
+</div>
+// ...existing code...

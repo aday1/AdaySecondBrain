@@ -1,0 +1,11 @@
+Review the following daily log entry and provide insights on:
+1. Key activities and accomplishments
+2. Mood patterns and emotional state
+3. Progress toward stated goals
+4. Areas for improvement or focus
+5. Notable patterns or trends
+
+Context: {date}
+Entry: {content}
+
+Please maintain privacy and analyze locally only.

@@ -17,67 +17,106 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from pkm_manager import PKMManager
 from utils import format_timestamp
 
-# Configure logging before creating the app
-logging.basicConfig(
-    level=logging.DEBUG,
-    format='%(asctime)s [%(levelname)s] %(message)s',
-    handlers=[logging.StreamHandler()]
-)
+# Configure logging
+logging.basicConfig(level=logging.DEBUG)
+app = Flask(__name__, 
+            template_folder='templates',  # Add template folder
+            static_folder='static')       # Add static folder
+app.debug = True
 
-app = Flask(__name__)
-app.debug = True  # Enable debug mode
-
-# Configure Werkzeug logger
-werkzeug_logger = logging.getLogger('werkzeug')
-werkzeug_logger.setLevel(logging.DEBUG)
-
-# Add request logging
-@app.before_request
-def before_request():
-    app.logger.debug(f'\nRequest: {request.method} {request.url}')
-    app.logger.debug(f'Headers: {dict(request.headers)}')
-    app.logger.debug(f'Body: {request.get_data().decode()}')
-
-@app.after_request
-def after_request(response):
-    app.logger.debug(f'Response Status: {response.status}')
-    app.logger.debug(f'Response Headers: {dict(response.headers)}')
-    return response
-
+# Initialize login manager
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
 
 pkm = PKMManager()
-app.logger.info(f"Database path: {pkm.db_path}")  # Debug output
-app.logger.info(f"Database exists: {os.path.exists(pkm.db_path)}")  # Debug output
 
-# Initialize database with sub_daily_moods table
+# Initialize database
 def init_db():
-    app.logger.info("Initializing database...")  # Debug output
     conn = pkm.get_db_connection()
     cursor = conn.cursor()
     
-    # Create sub_daily_moods table if it doesn't exist
+    # Create work_logs table if it doesn't exist
     cursor.execute('''
-        CREATE TABLE IF NOT EXISTS sub_daily_moods (
+        CREATE TABLE IF NOT EXISTS work_logs (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            logged_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            mood INTEGER,
-            energy INTEGER,
-            notes TEXT
+            date DATE NOT NULL,
+            start_time TIMESTAMP,
+            end_time TIMESTAMP,
+            project TEXT,
+            description TEXT,
+            total_hours REAL
         )
     ''')
     
-    # Debug output - list all tables
-    cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
-    tables = cursor.fetchall()
-    app.logger.info(f"Tables in database: {[table[0] for table in tables]}")  # Debug output
+    # Create habits table if it doesn't exist
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS habits (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT UNIQUE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+
+    # Create habit_logs table if it doesn't exist
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS habit_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            habit_id INTEGER,
+            completed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            notes TEXT,
+            FOREIGN KEY (habit_id) REFERENCES habits (id)
+        )
+    ''')
+
+    # Create alcohol_logs table if it doesn't exist
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS alcohol_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            drink_type TEXT NOT NULL,
+            units REAL NOT NULL,
+            notes TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+
+    # Create drink_types table if it doesn't exist
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS drink_types (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT UNIQUE NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+
+    # Create daily_logs table if it doesn't exist
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS daily_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            date DATE NOT NULL,
+            content TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+
+    # Create daily_metrics table if it doesn't exist
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS daily_metrics (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            date DATE NOT NULL,
+            mood_rating INTEGER CHECK (mood_rating BETWEEN 1 AND 10),
+            energy_level INTEGER CHECK (energy_level BETWEEN 1 AND 10),
+            sleep_hours REAL,
+            notes TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
     
     conn.commit()
     conn.close()
 
-# Call init_db when the app starts
 init_db()
 
 # Load configuration
@@ -89,17 +128,8 @@ def load_config():
     except FileNotFoundError:
         return {'web_enabled': False, 'username': 'admin', 'password_hash': None}
 
-# Initialize app configuration from config.json
 config = load_config()
 app.secret_key = config.get('secret_key', os.urandom(24))
-
-# Make config and global functions available to all templates
-@app.context_processor
-def inject_config():
-    return dict(
-        site_title=config.get('title', 'Personal Knowledge Management'),
-        min=min  # Add min() function to templates
-    )
 
 class User(UserMixin):
     def __init__(self, id):
@@ -109,97 +139,308 @@ class User(UserMixin):
 def load_user(user_id):
     return User(user_id)
 
-@app.template_filter('format_date')
-def format_date_filter(date):
-    """Convert date to format with month name"""
-    if isinstance(date, str):
-        date = datetime.strptime(date, '%Y-%m-%d')
-    return date.strftime('%B %d, %Y')  # e.g., "January 01, 2024"
+@app.route('/api/daily-data/<date>')
+@login_required
+def get_daily_data(date):
+    conn = pkm.get_db_connection()
+    cursor = conn.cursor()
+    
+    # Get daily metrics
+    cursor.execute('''
+        SELECT date, mood_rating, energy_level
+        FROM daily_metrics
+        WHERE date = ?
+    ''', (date,))
+    
+    metrics_data = cursor.fetchall()
+    
+    # Get sub-daily moods
+    cursor.execute('''
+        SELECT logged_at, mood, energy
+        FROM sub_daily_moods
+        WHERE date(logged_at) = ?
+        ORDER BY logged_at
+    ''', (date,))
+    
+    mood_data = cursor.fetchall()
+    
+    metrics = [
+        {"name": "Productivity", "color": "#4CAF50"},
+        {"name": "Focus", "color": "#2196F3"},
+        {"name": "Energy", "color": "#FFC107"}
+    ]
+    
+    formatted_data = []
+    
+    # Add daily metrics
+    for row in metrics_data:
+        date_str, mood, energy = row
+        formatted_data.append({
+            "timestamp": f"{date_str} 12:00:00",  # Noon for daily metrics
+            "values": [mood, mood, energy]  # Using mood for both productivity and focus
+        })
+    
+    # Add sub-daily moods
+    for row in mood_data:
+        timestamp, mood, energy = row
+        formatted_data.append({
+            "timestamp": timestamp,
+            "values": [mood, mood, energy]  # Using mood for both productivity and focus
+        })
+    
+    # Sort by timestamp
+    formatted_data.sort(key=lambda x: x["timestamp"])
+    
+    conn.close()
+    return jsonify({
+        "metrics": metrics,
+        "dataPoints": formatted_data
+    })
 
-def get_mood_emoji(value):
-    """Helper function to get mood emoji based on value"""
-    if value <= 3:
-        return '😫'
-    elif value <= 5:
-        return '😐'
-    elif value <= 7:
-        return '🙂'
-    else:
-        return '😊'
+@app.route('/api/work-hours/<timeframe>')
+@login_required
+def get_work_hours(timeframe):
+    conn = pkm.get_db_connection()
+    cursor = conn.cursor()
+    
+    # Calculate date range based on timeframe
+    today = datetime.now().date()
+    if timeframe == 'day':
+        start_date = today
+    elif timeframe == 'week':
+        start_date = today - timedelta(days=7)
+    elif timeframe == 'month':
+        start_date = today - timedelta(days=30)
+    else:  # year
+        start_date = today - timedelta(days=365)
+    
+    # Get work distribution data for the specified timeframe
+    cursor.execute('''
+        SELECT project as category, SUM(total_hours) as hours
+        FROM work_logs
+        WHERE date >= ?
+        GROUP BY project
+    ''', (start_date.strftime('%Y-%m-%d'),))
+    
+    data = cursor.fetchall()
+    conn.close()
+    
+    if not data:
+        # Return sample data if no data exists
+        return jsonify({
+            'categories': ['Development', 'Meetings', 'Planning', 'Research', 'Breaks'],
+            'hours': [4.5, 2, 1, 1.5, 1] if timeframe == 'day' else
+                    [20, 8, 4, 6, 2] if timeframe == 'week' else
+                    [80, 32, 16, 24, 8] if timeframe == 'month' else
+                    [960, 384, 192, 288, 96]  # year
+        })
+    
+    categories = [row[0] for row in data]
+    hours = [row[1] for row in data]
+    
+    return jsonify({
+        'categories': categories,
+        'hours': hours
+    })
 
-def get_energy_emoji(value):
-    """Helper function to get energy emoji based on value"""
-    if value <= 3:
-        return '🔋'
-    elif value <= 7:
-        return '⚡'
-    else:
-        return '⚡⚡'
+@app.route('/api/work-hours', methods=['POST'])
+@login_required
+def log_work_hours():
+    data = request.get_json()
+    conn = pkm.get_db_connection()
+    cursor = conn.cursor()
+    
+    # Calculate end time based on start time and total hours
+    start_time = datetime.now()
+    end_time = start_time + timedelta(hours=float(data['hours']))
+    
+    cursor.execute('''
+        INSERT INTO work_logs (date, start_time, end_time, project, description, total_hours)
+        VALUES (date('now'), ?, ?, ?, ?, ?)
+    ''', (start_time.strftime('%Y-%m-%d %H:%M:%S'),
+          end_time.strftime('%Y-%m-%d %H:%M:%S'),
+          data['category'],
+          f"Work logged for {data['category']}",
+          data['hours']))
+    
+    conn.commit()
+    conn.close()
+    return jsonify({'status': 'success'})
 
 @app.route('/')
 @login_required
 def index():
-    app.logger.info("Accessing index route...")  # Debug output
+    return render_template('dashboard.html')
+
+@app.route('/metrics')
+@login_required
+def metrics():
+    return render_template('metrics.html')
+
+@app.route('/work')
+@login_required
+def work():
+    return render_template('work.html')
+
+@app.route('/habits', methods=['GET', 'POST'])
+@login_required
+def habits():
     conn = pkm.get_db_connection()
     cursor = conn.cursor()
+
+    if request.method == 'POST':
+        if 'delete_habit' in request.form:
+            # Delete habit
+            habit_name = request.form['delete_habit']
+            cursor.execute('DELETE FROM habit_logs WHERE habit_id IN (SELECT id FROM habits WHERE name = ?)', (habit_name,))
+            cursor.execute('DELETE FROM habits WHERE name = ?', (habit_name,))
+            flash(f'Habit "{habit_name}" deleted successfully')
+        else:
+            # Add new habit or log existing one
+            habit_name = request.form.get('new-habit') if request.form.get('habit') == 'new' else request.form.get('habit')
+            notes = request.form.get('notes', '')
+
+            # First ensure the habit exists
+            cursor.execute('INSERT OR IGNORE INTO habits (name) VALUES (?)', (habit_name,))
+            
+            # Get the habit_id
+            cursor.execute('SELECT id FROM habits WHERE name = ?', (habit_name,))
+            habit_id = cursor.fetchone()[0]
+            
+            # Log the habit completion
+            cursor.execute('INSERT INTO habit_logs (habit_id, notes) VALUES (?, ?)', (habit_id, notes))
+            flash(f'Habit "{habit_name}" logged successfully')
+
+        conn.commit()
+
+    # Get habits with their weekly completion counts and recent notes
+    cursor.execute('''
+        WITH weekly_counts AS (
+            SELECT h.name, COUNT(hl.id) as count, GROUP_CONCAT(hl.notes) as notes
+            FROM habits h
+            LEFT JOIN habit_logs hl ON h.id = hl.habit_id
+            AND hl.completed_at >= datetime('now', '-7 days')
+            GROUP BY h.name
+        )
+        SELECT name, count, notes
+        FROM weekly_counts
+        ORDER BY count DESC, name
+    ''')
     
+    habits_data = cursor.fetchall()
+    conn.close()
+
+    return render_template('habits.html', habits=habits_data)
+
+@app.route('/alcohol', methods=['GET', 'POST'])
+@login_required
+def alcohol():
+    conn = pkm.get_db_connection()
+    cursor = conn.cursor()
+
+    if request.method == 'POST':
+        drink_type = request.form.get('drink_type')
+        units = float(request.form.get('units'))
+        notes = request.form.get('notes', '')
+
+        # Insert the drink type if it's new
+        cursor.execute('INSERT OR IGNORE INTO drink_types (name) VALUES (?)', (drink_type,))
+        
+        # Log the alcohol consumption
+        cursor.execute('''
+            INSERT INTO alcohol_logs (drink_type, units, notes)
+            VALUES (?, ?, ?)
+        ''', (drink_type, units, notes))
+        
+        conn.commit()
+        flash('Alcohol consumption logged successfully')
+
+    # Get all drink types
+    cursor.execute('SELECT name FROM drink_types ORDER BY name')
+    drink_types = [row[0] for row in cursor.fetchall()]
+
+    # Get recent alcohol logs
+    cursor.execute('''
+        SELECT id, date, drink_type, units, notes
+        FROM alcohol_logs
+        ORDER BY date DESC
+        LIMIT 50
+    ''')
+    alcohol_logs = cursor.fetchall()
+
+    # Calculate weekly total
+    cursor.execute('''
+        SELECT SUM(units)
+        FROM alcohol_logs
+        WHERE date >= datetime('now', '-7 days')
+    ''')
+    weekly_total = cursor.fetchone()[0] or 0
+
+    conn.close()
+
+    return render_template('alcohol.html', 
+                         drink_types=drink_types,
+                         alcohol_logs=alcohol_logs,
+                         weekly_total=weekly_total)
+
+@app.route('/update_alcohol_log', methods=['POST'])
+@login_required
+def update_alcohol_log():
+    data = request.get_json()
+    conn = pkm.get_db_connection()
+    cursor = conn.cursor()
+
     try:
-        # Get unique projects
-        app.logger.info("Fetching projects...")  # Debug output
-        cursor.execute('SELECT DISTINCT project FROM work_logs WHERE project IS NOT NULL ORDER BY project')
-        projects = [row[0] for row in cursor.fetchall()]
-        app.logger.info(f"Found projects: {projects}")  # Debug output
+        # Insert the drink type if it's new
+        cursor.execute('INSERT OR IGNORE INTO drink_types (name) VALUES (?)', (data['drink_type'],))
         
-        # Get unique habits
-        app.logger.info("Fetching habits...")  # Debug output
-        cursor.execute('SELECT name FROM habits ORDER BY name')
-        habits = [row[0] for row in cursor.fetchall()]
-        app.logger.info(f"Found habits: {habits}")  # Debug output
-        
-        # Get unique drink types
-        app.logger.info("Fetching drink types...")  # Debug output
+        # Update the log
         cursor.execute('''
-            SELECT DISTINCT drink_type 
-            FROM alcohol_logs 
-            WHERE drink_type IS NOT NULL 
-            ORDER BY drink_type
-        ''')
-        drink_types = [row[0] for row in cursor.fetchall()]
-        app.logger.info(f"Found drink types: {drink_types}")  # Debug output
+            UPDATE alcohol_logs
+            SET drink_type = ?, units = ?, notes = ?
+            WHERE id = ?
+        ''', (data['drink_type'], data['units'], data['notes'], data['id']))
         
-        # Get today's sub-daily mood logs
-        app.logger.info("Fetching today's mood logs...")  # Debug output
-        cursor.execute('''
-            SELECT logged_at, mood, energy, notes 
-            FROM sub_daily_moods 
-            WHERE date(logged_at) = date('now')
-            ORDER BY logged_at DESC
-        ''')
-        sub_daily_logs = []
-        for row in cursor.fetchall():
-            timestamp, mood, energy, notes = row
-            time = datetime.strptime(timestamp, '%Y-%m-%d %H:%M:%S').strftime('%I:%M %p')
-            sub_daily_logs.append({
-                'time': time,
-                'mood': mood,
-                'mood_emoji': get_mood_emoji(mood),
-                'energy': energy,
-                'energy_emoji': get_energy_emoji(energy),
-                'notes': notes
-            })
-        app.logger.info(f"Found {len(sub_daily_logs)} mood logs for today")  # Debug output
-        
-        conn.close()
-        
-        return render_template('index.html', 
-                             projects=projects, 
-                             habits=habits, 
-                             drink_types=drink_types,
-                             sub_daily_logs=sub_daily_logs)
+        conn.commit()
+        return jsonify({'status': 'success'})
     except Exception as e:
-        app.logger.error(f"Error in index route: {str(e)}")  # Debug output
+        conn.rollback()
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+    finally:
         conn.close()
-        raise
+
+@app.route('/daily_logs', methods=['GET', 'POST'])
+@login_required
+def daily_logs():
+    conn = pkm.get_db_connection()
+    cursor = conn.cursor()
+
+    if request.method == 'POST':
+        date = request.form.get('date')
+        content = request.form.get('content')
+
+        cursor.execute('''
+            INSERT OR REPLACE INTO daily_logs (date, content, updated_at)
+            VALUES (?, ?, CURRENT_TIMESTAMP)
+        ''', (date, content))
+        
+        conn.commit()
+        flash('Daily log saved successfully')
+
+    # Get recent daily logs
+    cursor.execute('''
+        SELECT date, content, created_at, updated_at
+        FROM daily_logs
+        ORDER BY date DESC
+        LIMIT 30
+    ''')
+    logs = cursor.fetchall()
+    conn.close()
+
+    # Get today's date for the default value
+    today = datetime.now().strftime('%Y-%m-%d')
+
+    return render_template('daily_logs.html', logs=logs, today=today)
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -226,440 +467,16 @@ def logout():
     logout_user()
     return redirect(url_for('login'))
 
-@app.route('/sub_daily_mood', methods=['POST'])
-@login_required
-def sub_daily_mood():
-    try:
-        mood = int(request.form.get('sub_mood'))
-        energy = int(request.form.get('sub_energy'))
-        notes = request.form.get('sub_notes')
-        
-        conn = pkm.get_db_connection()
-        cursor = conn.cursor()
-        
-        cursor.execute('''
-            INSERT INTO sub_daily_moods (mood, energy, notes)
-            VALUES (?, ?, ?)
-        ''', (mood, energy, notes))
-        
-        conn.commit()
-        conn.close()
-        
-        flash('Mood state logged successfully')
-    except ValueError:
-        flash('Invalid input')
-    except Exception as e:
-        flash(f'Error: {str(e)}')
-    
-    return redirect(url_for('index'))
-
-@app.route('/metrics', methods=['GET', 'POST'])
-@login_required
-def metrics():
-    if request.method == 'POST':
-        try:
-            mood = int(request.form.get('mood'))
-            energy = int(request.form.get('energy'))
-            sleep = float(request.form.get('sleep'))
-            notes = request.form.get('notes')
-            
-            pkm.log_daily_metrics(mood, energy, sleep, notes)
-            flash('Metrics logged successfully')
-        except ValueError:
-            flash('Invalid input')
-        return redirect(url_for('metrics'))
-        
-    # Get today's metrics
-    conn = pkm.get_db_connection()
-    cursor = conn.cursor()
-    
-    # Get today's metrics
-    cursor.execute('SELECT * FROM daily_metrics WHERE date = date("now")')
-    today_metrics = cursor.fetchone()
-    
-    # Get historical metrics for the past 30 days
-    cursor.execute('''
-        SELECT date, mood_rating, energy_level, sleep_hours, notes 
-        FROM daily_metrics 
-        WHERE date >= date('now', '-30 days')
-        ORDER BY date ASC
-    ''')
-    historical_metrics = cursor.fetchall()
-    
-    # Format historical metrics for Chart.js
-    dates = []
-    moods = []
-    energies = []
-    sleep_hours = []
-    
-    for metric in historical_metrics:
-        dates.append(metric[0])  # date
-        moods.append(metric[1])  # mood_rating
-        energies.append(metric[2])  # energy_level
-        sleep_hours.append(metric[3])  # sleep_hours
-    
-    conn.close()
-    
-    return render_template('metrics.html', 
-                         metrics=today_metrics,
-                         dates=dates,
-                         moods=moods,
-                         energies=energies,
-                         sleep_hours=sleep_hours)
-
-@app.route('/work', methods=['GET', 'POST'])
-@login_required
-def work():
-    if request.method == 'POST':
-        try:
-            project = request.form.get('project')
-            if project == 'new':
-                project = request.form.get('new-project')
-            description = request.form.get('description')
-            hours = float(request.form.get('hours'))
-            
-            pkm.log_work_hours_direct(hours, project=project, description=description)
-            flash('Work logged successfully')
-        except ValueError:
-            flash('Invalid input: Please enter a valid number of hours')
-        except Exception as e:
-            flash(f'Error: {str(e)}')
-        return redirect(url_for('work'))
-        
-    # Get recent work logs and unique projects
-    conn = pkm.get_db_connection()
-    cursor = conn.cursor()
-    
-    # Get work logs with ID included
-    cursor.execute('''
-        SELECT date, project, description, total_hours, id
-        FROM work_logs 
-        WHERE date >= date('now', '-7 days')
-        ORDER BY date DESC
-    ''')
-    work_logs = cursor.fetchall()
-    
-    # Get unique projects
-    cursor.execute('SELECT DISTINCT project FROM work_logs WHERE project IS NOT NULL ORDER BY project')
-    projects = [row[0] for row in cursor.fetchall()]
-    
-    conn.close()
-    
-    return render_template('work.html', work_logs=work_logs, projects=projects)
-
-@app.route('/update_work_log', methods=['POST'])
-@login_required
-def update_work_log():
-    try:
-        data = request.get_json()
-        log_id = data.get('id')
-        project = data.get('project')
-        description = data.get('description')
-        total_hours = float(data.get('total_hours'))
-        
-        conn = pkm.get_db_connection()
-        cursor = conn.cursor()
-        
-        cursor.execute('''
-            UPDATE work_logs 
-            SET project = ?, description = ?, total_hours = ?
-            WHERE id = ?
-        ''', (project, description, total_hours, log_id))
-        
-        conn.commit()
-        conn.close()
-        
-        return jsonify({'status': 'success'})
-    except Exception as e:
-        return jsonify({'status': 'error', 'message': str(e)}), 400
-
-@app.route('/delete_project', methods=['POST'])
-@login_required
-def delete_project():
-    try:
-        data = request.get_json()
-        project_name = data.get('project')
-        
-        if not project_name:
-            return jsonify({'status': 'error', 'message': 'Project name is required'}), 400
-            
-        conn = pkm.get_db_connection()
-        cursor = conn.cursor()
-        
-        # Delete all work logs for this project
-        cursor.execute('DELETE FROM work_logs WHERE project = ?', (project_name,))
-        
-        conn.commit()
-        conn.close()
-        
-        return jsonify({'status': 'success'})
-    except Exception as e:
-        return jsonify({'status': 'error', 'message': str(e)}), 400
-
-@app.route('/delete_habit', methods=['POST'])
-@login_required
-def delete_habit():
-    try:
-        data = request.get_json()
-        habit_name = data.get('habit')
-        
-        if not habit_name:
-            return jsonify({'status': 'error', 'message': 'Habit name is required'}), 400
-            
-        conn = pkm.get_db_connection()
-        cursor = conn.cursor()
-        
-        # First get the habit ID
-        cursor.execute('SELECT id FROM habits WHERE name = ?', (habit_name,))
-        habit = cursor.fetchone()
-        
-        if habit:
-            habit_id = habit[0]
-            # Delete all habit logs for this habit
-            cursor.execute('DELETE FROM habit_logs WHERE habit_id = ?', (habit_id,))
-            # Delete the habit itself
-            cursor.execute('DELETE FROM habits WHERE id = ?', (habit_id,))
-            
-            conn.commit()
-            conn.close()
-            return jsonify({'status': 'success'})
-        else:
-            return jsonify({'status': 'error', 'message': 'Habit not found'}), 404
-            
-    except Exception as e:
-        return jsonify({'status': 'error', 'message': str(e)}), 400
-
-@app.route('/habits', methods=['GET', 'POST'])
-@login_required
-def habits():
-    if request.method == 'POST':
-        try:
-            habit = request.form.get('habit')
-            notes = request.form.get('notes')
-            
-            pkm.log_habit(habit, notes=notes)
-            flash('Habit logged successfully')
-        except Exception as e:
-            flash(f'Error: {str(e)}')
-        return redirect(url_for('habits'))
-        
-    # Get habits, their completion counts, and recent notes
-    conn = pkm.get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute('''
-        SELECT 
-            h.name,
-            COUNT(DISTINCT hl1.id) as completions,
-            GROUP_CONCAT(DISTINCT hl2.notes) as recent_notes
-        FROM habits h
-        LEFT JOIN habit_logs hl1 
-            ON h.id = hl1.habit_id
-            AND hl1.completed_at >= date('now', '-7 days')
-        LEFT JOIN (
-            SELECT habit_id, notes
-            FROM habit_logs
-            WHERE notes IS NOT NULL AND notes != ''
-            AND completed_at >= date('now', '-7 days')
-            ORDER BY completed_at DESC
-        ) hl2 ON h.id = hl2.habit_id
-        GROUP BY h.name
-    ''')
-    habits = cursor.fetchall()
-    conn.close()
-    
-    return render_template('habits.html', habits=habits)
-
-@app.route('/alcohol', methods=['GET', 'POST'])
-@login_required
-def alcohol():
-    try:
-        if request.method == 'POST':
-            try:
-                drink_type = request.form.get('drink_type')
-                if not drink_type:
-                    raise ValueError("Drink type is required")
-                
-                units = request.form.get('units')
-                if not units:
-                    raise ValueError("Units are required")
-                units = float(units)
-                if units <= 0:
-                    raise ValueError("Units must be greater than 0")
-                
-                notes = request.form.get('notes')
-                
-                pkm.log_alcohol(drink_type, units, notes)
-                flash('Alcohol consumption logged successfully')
-            except ValueError as e:
-                flash(f'Invalid input: {str(e)}')
-            except Exception as e:
-                flash(f'Error logging alcohol consumption: {str(e)}')
-            return redirect(url_for('alcohol'))
-            
-        # Get recent alcohol logs and unique drink types
-        conn = pkm.get_db_connection()
-        cursor = conn.cursor()
-        
-        # Get recent logs with IDs and calculate weekly total
-        cursor.execute('''
-            SELECT id, date, drink_type, units, notes,
-                   (SELECT SUM(units) 
-                    FROM alcohol_logs 
-                    WHERE date >= date('now', '-7 days')) as weekly_total
-            FROM alcohol_logs
-            WHERE date >= date('now', '-7 days')
-            ORDER BY date DESC
-        ''')
-        alcohol_logs = cursor.fetchall()
-        
-        # Get unique drink types
-        cursor.execute('''
-            SELECT DISTINCT drink_type 
-            FROM alcohol_logs 
-            WHERE drink_type IS NOT NULL 
-            ORDER BY drink_type
-        ''')
-        drink_types = [row[0] for row in cursor.fetchall()]
-        
-        # Calculate weekly total
-        weekly_total = alcohol_logs[0][5] if alcohol_logs else 0
-        
-        conn.close()
-        
-        return render_template('alcohol.html', 
-                             alcohol_logs=alcohol_logs, 
-                             drink_types=drink_types,
-                             weekly_total=weekly_total)
-    except Exception as e:
-        flash(f'An unexpected error occurred: {str(e)}')
-        return redirect(url_for('index'))
-
-@app.route('/update_alcohol_log', methods=['POST'])
-@login_required
-def update_alcohol_log():
-    try:
-        data = request.get_json()
-        log_id = data.get('id')
-        drink_type = data.get('drink_type')
-        units = float(data.get('units'))
-        notes = data.get('notes')
-        
-        conn = pkm.get_db_connection()
-        cursor = conn.cursor()
-        
-        cursor.execute('''
-            UPDATE alcohol_logs 
-            SET drink_type = ?, units = ?, notes = ?
-            WHERE id = ?
-        ''', (drink_type, units, notes, log_id))
-        
-        conn.commit()
-        conn.close()
-        
-        return jsonify({'status': 'success'})
-    except Exception as e:
-        return jsonify({'status': 'error', 'message': str(e)}), 400
-
-@app.route('/daily_logs', methods=['GET', 'POST'])
-@login_required
-def daily_logs():
-    if request.method == 'POST':
-        try:
-            # Create today's log
-            today = datetime.now().strftime('%Y-%m-%d')
-            file_path = os.path.join(pkm.daily_dir, f'{today}.md')
-            
-            # Check if file already exists
-            if os.path.exists(file_path):
-                flash('Today\'s log already exists')
-                return redirect(url_for('daily_logs'))
-            
-            # Create daily directory if it doesn't exist
-            os.makedirs(pkm.daily_dir, exist_ok=True)
-            
-            # Get template content
-            template_path = os.path.join(pkm.templates_dir, 'daily_template.md')
-            try:
-                with open(template_path, 'r') as f:
-                    template_content = f.read()
-            except FileNotFoundError:
-                template_content = f"# Daily Log - {today}\n\n## Notes\n\n## Tasks\n\n## Reflections\n"
-            
-            # Create the new log file
-            with open(file_path, 'w') as f:
-                f.write(template_content)
-            
-            flash('Today\'s log created successfully')
-            return redirect(url_for('edit_log', date=today))
-        except Exception as e:
-            flash(f'Error creating log: {str(e)}')
-            return redirect(url_for('daily_logs'))
-    
-    logs = []
-    
-    try:
-        if os.path.exists(pkm.daily_dir):
-            for log_file in sorted(os.listdir(pkm.daily_dir), reverse=True)[:5]:
-                if log_file.endswith('.md'):
-                    with open(os.path.join(pkm.daily_dir, log_file), 'r') as f:
-                        content = f.read()
-                        html_content = markdown.markdown(content, extensions=['fenced_code', 'tables'])
-                        logs.append({
-                            'date': log_file.replace('.md', ''),
-                            'content': html_content,
-                            'raw_content': content
-                        })
-    except Exception as e:
-        flash(f'Error reading logs: {str(e)}')
-    
-    return render_template('daily_logs.html', logs=logs)
-
-@app.route('/edit_log/<date>', methods=['GET', 'POST'])
-@login_required
-def edit_log(date):
-    file_path = os.path.join(pkm.daily_dir, f'{date}.md')
-    
-    if request.method == 'POST':
-        content = request.form.get('content')
-        try:
-            with open(file_path, 'w') as f:
-                f.write(content)
-            flash('Log updated successfully')
-            return redirect(url_for('daily_logs'))
-        except Exception as e:
-            flash(f'Error updating log: {str(e)}')
-            return redirect(url_for('daily_logs'))
-    
-    try:
-        with open(file_path, 'r') as f:
-            content = f.read()
-        return render_template('edit_log.html', date=date, content=content)
-    except FileNotFoundError:
-        flash('Log file not found')
-        return redirect(url_for('daily_logs'))
-
-# Error handlers
-@app.errorhandler(405)
-def method_not_allowed(e):
-    flash('Invalid request method')
-    return redirect(url_for('daily_logs'))
-
-@app.errorhandler(500)
-def internal_server_error(e):
-    flash('An internal server error occurred. Please try again later.')
-    return redirect(url_for('index'))
-
 def start_server(host='0.0.0.0', port=None):
     config = load_config()
     if not config['web_enabled']:
         print("Web interface is disabled. Enable it in web/config.json")
         return
     
-    # Use port from config if not specified
     if port is None:
         port = config.get('port', 5000)
     
-    app.run(host=host, port=port, debug=True)  # Enable debug mode
+    app.run(host=host, port=port, debug=True)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='PKM Web Interface')
